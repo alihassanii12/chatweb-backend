@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: chatweb-backend
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chatweb-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false
+
+databases:
+  - name: chatweb-db
+    databaseName: chatweb_db
+    user: chatweb_user

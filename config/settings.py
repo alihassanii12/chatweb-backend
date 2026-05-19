@@ -5,14 +5,16 @@ Django settings for config project.
 import os
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security settings
-SECRET_KEY = 'django-insecure-private-chat-watch-together-key-!%@$n3rt#'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-private-chat-watch-together-key-!%@$n3rt#')
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -68,16 +70,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # Database Setup (PostgreSQL)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chatweb_db',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres123',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+# Use DATABASE_URL from environment (Render provides this)
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    # Local development database
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'chatweb_db',
+            'USER': 'postgres',
+            'PASSWORD': 'postgres123',
+            'HOST': '127.0.0.1',
+            'PORT': '5432',
+        }
+    }
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -114,13 +127,17 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in debug mode
 
-CORS_ORIGINS = [
-    'http://localhost:3000',
-    'http://192.168.0.102:3000',
-]
+# In production, specify your frontend URL
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+else:
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ORIGINS = [
+        'http://localhost:3000',
+        'http://192.168.0.102:3000',
+    ]
 
 # REST Framework settings
 REST_FRAMEWORK = {
