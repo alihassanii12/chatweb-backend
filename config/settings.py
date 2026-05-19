@@ -130,13 +130,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in debug mode
+CORS_ALLOW_CREDENTIALS = True
 
 # In production, specify your frontend URL
 if not DEBUG:
-    CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+    if cors_origins:
+        CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+    else:
+        # Default production frontend URL
+        CORS_ALLOWED_ORIGINS = [
+            'https://chatweb-eta-swart.vercel.app',
+        ]
 else:
-    CORS_ALLOW_CREDENTIALS = True
-    CORS_ORIGINS = [
+    CORS_ALLOWED_ORIGINS = [
         'http://localhost:3000',
         'http://192.168.0.102:3000',
     ]

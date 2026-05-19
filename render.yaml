@@ -19,7 +19,7 @@ services:
       - key: ALLOWED_HOSTS
         sync: false
       - key: CORS_ALLOWED_ORIGINS
-        value: https://chatweb-eight-delta.vercel.app
+        value: https://chatweb-eta-swart.vercel.app
 
 databases:
   - name: chatweb-db
