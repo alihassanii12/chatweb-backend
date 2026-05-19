@@ -54,6 +54,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# CSRF settings for API
+CSRF_TRUSTED_ORIGINS = [
+    'https://chatweb-eta-swart.vercel.app',
+    'https://*.vercel.app',
+]
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
