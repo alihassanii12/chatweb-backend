@@ -138,10 +138,14 @@ if not DEBUG:
     if cors_origins:
         CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
     else:
-        # Default production frontend URL
+        # Default production frontend URL - allow all Vercel deployments
         CORS_ALLOWED_ORIGINS = [
             'https://chatweb-eta-swart.vercel.app',
         ]
+    # Allow all Vercel preview deployments
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://.*\.vercel\.app$",
+    ]
 else:
     CORS_ALLOWED_ORIGINS = [
         'http://localhost:3000',
