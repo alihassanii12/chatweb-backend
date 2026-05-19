@@ -15,12 +15,14 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-private-chat-watch-to
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # Parse ALLOWED_HOSTS from environment variable
+# Always include essential hosts to prevent accidental lockout
+_default_hosts = ['localhost', '127.0.0.1', '.onrender.com']
 allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
-    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
+    _env_hosts = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
+    ALLOWED_HOSTS = list(set(_default_hosts + _env_hosts))
 else:
-    # Default allowed hosts for development and Render
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+    ALLOWED_HOSTS = _default_hosts
 
 # Application definition
 INSTALLED_APPS = [
