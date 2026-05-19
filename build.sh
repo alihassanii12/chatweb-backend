@@ -7,5 +7,10 @@ pip install --upgrade pip setuptools wheel
 
 pip install -r requirements.txt
 
+# Create staticfiles directory if it doesn't exist
+mkdir -p staticfiles
+
 python manage.py collectstatic --no-input
-python manage.py migrate
+
+# Run migrations
+python manage.py migrate --no-input
