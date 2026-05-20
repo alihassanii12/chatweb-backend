@@ -61,9 +61,24 @@ class RoomChatHistoryView(APIView):
 
 
 import os
+import cloudinary
+import cloudinary.uploader
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
+
+# Initialize Cloudinary config from environment variables
+CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
+CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY')
+CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
+
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True
+    )
 
 class MediaUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -72,6 +87,23 @@ class MediaUploadView(APIView):
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if Cloudinary environment variables are configured
+        if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+            try:
+                # Upload directly to Cloudinary CDN
+                # upload_large supports chunked uploading, perfect for streaming and large mobile videos (prevents memory OOM)
+                upload_result = cloudinary.uploader.upload_large(
+                    file_obj,
+                    resource_type="auto",
+                    chunk_size=6000000  # 6MB chunks
+                )
+                media_url = upload_result.get('secure_url')
+                if media_url:
+                    return Response({"url": media_url}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                # Log the error and fallback to local file system
+                print(f"Cloudinary upload failed: {e}. Falling back to default local storage.")
         
         # Save securely using Django's default storage engine without loading the entire file into memory (prevents OOM crashes on Render free tier)
         file_name = default_storage.get_available_name(file_obj.name)
