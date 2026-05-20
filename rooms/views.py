@@ -114,6 +114,11 @@ class MediaUploadView(APIView):
         
         # Build absolute streaming URL
         media_url = request.build_absolute_uri(settings.MEDIA_URL + file_path_url)
+        
+        # Force HTTPS in production to prevent browser Mixed Content security block
+        if 'localhost' not in media_url and '127.0.0.1' not in media_url:
+            media_url = media_url.replace('http://', 'https://')
+            
         return Response({"url": media_url}, status=status.HTTP_201_CREATED)
 
 

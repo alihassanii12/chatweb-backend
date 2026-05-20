@@ -14,6 +14,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-private-chat-watch-together-key-!%@$n3rt#')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+# Respect X-Forwarded-Proto header to properly recognize HTTPS proxy connections (Render/Vercel)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Parse ALLOWED_HOSTS from environment variable
 # Always include essential hosts to prevent accidental lockout
 _default_hosts = ['localhost', '127.0.0.1', '.onrender.com']
