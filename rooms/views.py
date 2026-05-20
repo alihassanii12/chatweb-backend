@@ -73,12 +73,15 @@ class MediaUploadView(APIView):
         if not file_obj:
             return Response({"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Save securely using Django's default storage engine
+        # Save securely using Django's default storage engine without loading the entire file into memory (prevents OOM crashes on Render free tier)
         file_name = default_storage.get_available_name(file_obj.name)
-        file_path = default_storage.save(os.path.join('uploads', file_name), ContentFile(file_obj.read()))
+        file_path = default_storage.save(os.path.join('uploads', file_name), file_obj)
+        
+        # Normalize the path for URLs (replaces backslashes on Windows systems)
+        file_path_url = file_path.replace('\\', '/')
         
         # Build absolute streaming URL
-        media_url = request.build_absolute_uri(settings.MEDIA_URL + file_path)
+        media_url = request.build_absolute_uri(settings.MEDIA_URL + file_path_url)
         return Response({"url": media_url}, status=status.HTTP_201_CREATED)
 
 
