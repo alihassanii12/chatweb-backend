@@ -4,6 +4,7 @@ from rest_framework import status, permissions
 from django.shortcuts import get_object_or_404
 from .models import Room, ChatMessage, RoomMedia
 from .serializers import RoomSerializer, ChatMessageSerializer, RoomMediaSerializer
+from .permissions import GLOBAL_ROOM_ID, assert_room_access
 
 
 class RoomCreateView(APIView):
@@ -16,26 +17,45 @@ class RoomCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-def get_room(pk, user):
-    if str(pk) == '00000000-0000-0000-0000-000000000000':
+def get_room(pk, user, *, require_access: bool = True):
+    if str(pk) == GLOBAL_ROOM_ID:
         room, _ = Room.objects.get_or_create(
-            id='00000000-0000-0000-0000-000000000000',
+            id=GLOBAL_ROOM_ID,
             defaults={'created_by': user}
         )
         return room
-    return get_object_or_404(Room, pk=pk)
+    room = get_object_or_404(Room, pk=pk)
+    if require_access:
+        assert_room_access(room, user)
+    return room
 
 
 class RoomJoinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        room = get_room(pk, request.user)
-        
-        # If the user joining is not the creator, bind them to joined_by
-        if room.created_by != request.user:
-            room.joined_by = request.user
-            room.save()
+        room = get_room(pk, request.user, require_access=False)
+
+        if str(room.id) == GLOBAL_ROOM_ID:
+            return Response(
+                {'detail': 'The shared cinema hall does not require joining.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if room.created_by == request.user:
+            return Response(
+                {'detail': 'You are already the host of this room.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if room.joined_by and room.joined_by != request.user:
+            return Response(
+                {'detail': 'This private room already has a partner.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        room.joined_by = request.user
+        room.save()
                 
         serializer = RoomSerializer(room)
         return Response(serializer.data, status=status.HTTP_200_OK)

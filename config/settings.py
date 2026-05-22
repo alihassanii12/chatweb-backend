@@ -3,6 +3,7 @@ Django settings for config project.
 """
 
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
@@ -11,8 +12,14 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security settings
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-private-chat-watch-together-key-!%@$n3rt#')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-change-in-production'
+    else:
+        print('ERROR: Set SECRET_KEY in production.', file=sys.stderr)
+        raise RuntimeError('SECRET_KEY environment variable is required when DEBUG=False')
 
 # Respect X-Forwarded-Proto header to properly recognize HTTPS proxy connections (Render/Vercel)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -175,8 +182,8 @@ REST_FRAMEWORK = {
 
 # JWT configurations
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Generous lifespan for development
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=365),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
     'ALGORITHM': 'HS256',
@@ -188,12 +195,23 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-# WebSocket channel layers (InMemory for local development - extremely stable and zero external dependencies)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+# WebSocket channel layers: Redis in production (multi-instance), in-memory for local dev
+REDIS_URL = os.environ.get('REDIS_URL')
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 # Eager Celery for synchronous background execution during dev
 CELERY_TASK_ALWAYS_EAGER = True

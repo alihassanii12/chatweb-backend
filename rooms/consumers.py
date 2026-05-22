@@ -27,6 +27,10 @@ class RoomConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
+        if not await self.user_has_room_access():
+            await self.close(code=4003)
+            return
+
         # Join the unique private room group
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -181,6 +185,18 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     # Helper async database operations
     @database_sync_to_async
+    def user_has_room_access(self):
+        from .models import Room
+        from .permissions import GLOBAL_ROOM_ID, user_can_access_room
+
+        try:
+            room = Room.objects.get(id=self.room_id)
+        except Room.DoesNotExist:
+            return self.room_id == GLOBAL_ROOM_ID
+
+        return user_can_access_room(room, self.user)
+
+    @database_sync_to_async
     def get_user_from_jwt(self, token):
         if not token:
             return AnonymousUser()
@@ -213,26 +229,28 @@ class RoomConsumer(AsyncWebsocketConsumer):
                 room.current_time = current_time
             elif action == 'seek':
                 room.current_time = current_time
-            elif action == 'change_video' and video_url:
-                room.current_video_url = video_url
-                room.current_time = 0.0
-                room.is_playing = False
-                
-                # Parse video filename as title
-                parsed_title = video_url.split('/')[-1]
-                if not parsed_title or 'youtube.com' in video_url or 'youtu.be' in video_url:
-                    parsed_title = 'YouTube Shared Video'
+            elif action == 'change_video':
+                if video_url:
+                    room.current_video_url = video_url
+                    room.current_time = 0.0
+                    room.is_playing = False
+
+                    parsed_title = video_url.split('/')[-1]
+                    if not parsed_title or 'youtube.com' in video_url or 'youtu.be' in video_url:
+                        parsed_title = 'YouTube Shared Video'
+                    else:
+                        parsed_title = parsed_title.split('?')[0]
+
+                    RoomMedia.objects.create(
+                        room=room,
+                        added_by=self.user,
+                        video_url=video_url,
+                        title=parsed_title[:250],
+                    )
                 else:
-                    # Remove query params if any
-                    parsed_title = parsed_title.split('?')[0]
-                
-                # Create persistent media record
-                RoomMedia.objects.create(
-                    room=room,
-                    added_by=self.user,
-                    video_url=video_url,
-                    title=parsed_title[:250]
-                )
+                    room.current_video_url = None
+                    room.current_time = 0.0
+                    room.is_playing = False
             room.save()
         except Exception as e:
             print(f"Error updating database room sync: {e}")
